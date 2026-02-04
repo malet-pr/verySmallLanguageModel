@@ -1,0 +1,16 @@
+.vslm
+__pycache__/
+data/
+checkpoints/
+models/
+*.npz
+*.npy
+plots/
+figures/
+*.png
+*.pdf
+logs/
+*.log
+.DS_Store
+.idea/
+.vscode/
