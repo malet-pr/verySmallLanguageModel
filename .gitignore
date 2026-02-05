@@ -5,6 +5,9 @@ checkpoints/
 models/
 *.npz
 *.npy
+*.pkl
+*.txt
+*.java
 plots/
 figures/
 *.png
