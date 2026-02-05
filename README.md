@@ -4,10 +4,9 @@ Educational transformer built from scratch using NumPy.
 
 ## Current milestone
 - Single transformer block
-- Forward pass only
-- Causal self-attention
-- LayerNorm + residuals
-- No training yet
+- Manual implementation of Gradient Descent and Backpropagation through time (BPTT) using NumPy.
+- training loop
+- tested with a java class
 
 ## Shapes
 - Input: (B, T)
@@ -15,5 +14,6 @@ Educational transformer built from scratch using NumPy.
 - Attention weights: (B, T, T)
 
 ## Next steps
-- Add training loop
+- Modify model parameters to get a better prediction
 - Visualize attention evolution
+- Store the model
