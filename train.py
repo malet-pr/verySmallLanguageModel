@@ -8,7 +8,7 @@ def main():
     data = encode(text, vocab)
     
     learning_rate = 0.001
-    iterations = 30000 
+    iterations = 30000
     
     embed = InputEmbedding(vocab_size=vocab.size,context_length=32,dim=64)
     lnorm = LayerNorm(dim=64)
@@ -63,6 +63,7 @@ def main():
             print(f"Iteration {i}, Loss: {loss:.4f}")
         if i % 100 == 0:
             print("*", end="", flush=True)    
+
 
 
 if __name__ == "__main__":

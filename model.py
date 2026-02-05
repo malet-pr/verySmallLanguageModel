@@ -241,6 +241,81 @@ class OutputProjection:
         return dx
 
 
+def cross_entropy_loss(logits, targets):
+    # logits: (B, T, V)
+    # targets: (B, T)
+
+    # numerical stability
+    logits = logits - logits.max(axis=-1, keepdims=True)
+
+    exp_logits = np.exp(logits)
+    probs = exp_logits / exp_logits.sum(axis=-1, keepdims=True)
+
+    B, T = targets.shape
+    idx_b = np.arange(B)[:, None]
+    idx_t = np.arange(T)[None, :]
+
+    correct_probs = probs[idx_b, idx_t, targets]
+    loss = -np.log(correct_probs).mean()
+
+    return loss, probs
+
+def cross_entropy_backward(probs, targets):
+    B, T, V = probs.shape
+
+    dlogits = probs.copy()
+    idx_b = np.arange(B)[:, None]
+    idx_t = np.arange(T)[None, :]
+    dlogits[idx_b, idx_t, targets] -= 1
+    dlogits /= (B * T)
+
+    return dlogits
+
+
+class FFN:
+    def __init__(self, dim, hidden_dim):
+        self.W1 = np.random.randn(dim, hidden_dim) * 0.02
+        self.b1 = np.zeros(hidden_dim)
+        self.W2 = np.random.randn(hidden_dim, dim) * 0.02
+        self.b2 = np.zeros(dim)
+        self.hidden_dim = hidden_dim
+
+    def forward(self, x):
+        # x: (B, T, D)
+        self.x = x
+
+        self.h = x @ self.W1 + self.b1        # (B,T,4D)
+        self.h_relu = np.maximum(0, self.h)  # ReLU
+        out = self.h_relu @ self.W2 + self.b2 # (B,T,D)
+
+        return out
+
+    def backward(self, dout):
+        # dout: (B, T, D)
+        B, T, D = dout.shape
+        BT = B * T
+
+        # ---- second linear ----
+        dout2d = dout.reshape(BT, D)
+        h2d = self.h_relu.reshape(BT, self.hidden_dim)
+
+        self.dW2 = h2d.T @ dout2d
+        self.db2 = dout2d.sum(axis=0)
+        dh_relu = (dout2d @ self.W2.T).reshape(B, T, self.hidden_dim)
+
+        # ---- ReLU ----
+        dh = dh_relu * (self.h > 0)
+
+        # ---- first linear ----
+        x2d = self.x.reshape(BT, D)
+        dh2d = dh.reshape(BT, self.hidden_dim)
+
+        self.dW1 = x2d.T @ dh2d
+        self.db1 = dh2d.sum(axis=0)
+        dx = (dh2d @ self.W1.T).reshape(B, T, D)
+
+        return dx
+
 def grad_check(model_layer, param_name, input_data, epsilon=1e-6):
     """
     Checks the analytic gradient against the numerical gradient.
