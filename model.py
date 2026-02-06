@@ -179,6 +179,87 @@ class SelfAttention:
         return dx,None
 
 
+class MultiHeadAttention:
+    def __init__(self, d_model, num_heads):
+        self.num_heads = num_heads
+        self.d_model = d_model
+        self.head_dim = d_model // num_heads # e.g., 128 // 4 = 32
+        
+        # We initialize Q, K, V and Output weights
+        self.w_q = np.random.randn(d_model, d_model) * 0.01
+        self.w_k = np.random.randn(d_model, d_model) * 0.01
+        self.w_v = np.random.randn(d_model, d_model) * 0.01
+        self.w_o = np.random.randn(d_model, d_model) * 0.01
+
+    def forward(self, x, mask=None):      
+        self.batch_size, self.seq_len, self.d_model = x.shape
+        self.x_cache = x
+        
+        # 1. Projections
+        self.q_cache = x @ self.w_q
+        self.k_cache = x @ self.w_k
+        self.v_cache = x @ self.w_v
+        
+        # 2. Split + Transpose (0, 2, 1, 3)
+        # We store these "Headed" versions for backward
+        self.q_heads = self.q_cache.reshape(self.batch_size, self.seq_len, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+        self.k_heads = self.k_cache.reshape(self.batch_size, self.seq_len, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+        self.v_heads = self.v_cache.reshape(self.batch_size, self.seq_len, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
+        
+        # 3. Attention
+        scores = (self.q_heads @ self.k_heads.transpose(0, 1, 3, 2)) / np.sqrt(self.head_dim)
+        if mask is not None: scores += (mask * -1e9)
+        
+        self.attn_weights = self.softmax(scores)
+        
+        # 4. Context (B, H, S, h_d)
+        self.context = self.attn_weights @ self.v_heads
+        
+        # 5. Merge
+        out = self.context.transpose(0, 2, 1, 3).reshape(self.batch_size, self.seq_len, self.d_model)
+        return out @ self.w_o
+
+    def backward(self, d_out):
+        # 1. d_out is (B, S, D)
+        # Gradient for W_O: (Context.T @ d_out)
+        # We need to flatten to (B*S, D) to treat every token as a sample
+        context_flattened = self.context.transpose(0, 2, 1, 3).reshape(-1, self.d_model)
+        d_out_flattened = d_out.reshape(-1, self.d_model)
+        
+        self.d_wo = context_flattened.T @ d_out_flattened 
+        
+        # 2. Project error back to context (before W_O)
+        d_context = (d_out @ self.w_o.T).reshape(self.q_heads.shape[0], self.q_heads.shape[1], self.q_heads.shape[2], self.q_heads.shape[3])
+        
+        # ... (Attention math happens here to get d_q, d_k, d_v in (B, H, S, h_d)) ...
+        d_attn_weights = d_context @ self.v_heads.transpose(0, 1, 3, 2)
+        d_scores = self.attn_weights * (d_attn_weights - np.sum(d_attn_weights * self.attn_weights, axis=-1, keepdims=True))
+        d_scores = d_scores / np.sqrt(self.head_dim)
+        
+        # 3. Gradients for W_q, W_k, W_v
+        # We need to reshape the d_q back to (B*S, D) and use the original input x
+        d_q = d_scores @ self.k_heads  # (B, H, S, h_d)
+        d_k = d_scores.transpose(0, 1, 3, 2) @ self.q_heads  # (B, H, S, h_d)
+        d_v = self.attn_weights.transpose(0, 1, 3, 2) @ d_context # (B, H, S, h_d)
+        
+        # Un-split d_q, d_k, d_v back to (B*S, D)
+        dq_flat = d_q.transpose(0, 2, 1, 3).reshape(-1, self.d_model)
+        dk_flat = d_k.transpose(0, 2, 1, 3).reshape(-1, self.d_model)
+        dv_flat = d_v.transpose(0, 2, 1, 3).reshape(-1, self.d_model)
+        
+        x_flattened = self.x_cache.reshape(-1, self.d_model)
+        self.d_wq = x_flattened.T @ dq_flat
+        self.d_wk = x_flattened.T @ dk_flat
+        self.d_wv = x_flattened.T @ dv_flat
+        
+        # 4. Return the gradient to the previous layer
+        return (dq_flat @ self.w_q.T + dk_flat @ self.w_k.T + dv_flat @ self.w_v.T).reshape(self.x_cache.shape)
+    
+    def softmax(self, x):
+        exp_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+        return exp_x / np.sum(exp_x, axis=-1, keepdims=True)
+    
+
 class LayerNorm:
     def __init__(self, dim, eps=1e-5):
         self.gamma = np.ones(dim)
