@@ -119,7 +119,7 @@ def main():
  
 
     my_model = {
-        'embed': embed, 'lnorm': lnorm, 'attn': attn,
+        'embed': embed, 'lnorm': lnorm, 'mhattn': mhattn,
         'lnorm2': lnorm2, 'ffn': ffn, 'proj': proj,
         'context_length': config['context_length'], 'stoi': vocab.stoi, 'itos': vocab.itos
     }
@@ -130,7 +130,7 @@ def generate(model, start_str, gen_length=100, temperature=0.1):
     # Unpack the components from the dictionary
     embed = model['embed']
     lnorm = model['lnorm']
-    attn = model['attn']
+    mhattn = model['mhattn']
     lnorm2 = model['lnorm2']
     ffn = model['ffn']
     proj = model['proj']
@@ -145,10 +145,10 @@ def generate(model, start_str, gen_length=100, temperature=0.1):
         x_input = np.array(current_context[-context_length:]).reshape(1, -1)
         
         # Forward pass
-        x = embed(x_input)
-        x_norm = lnorm.forward(x)
-        attn_out, _ = attn.forward(x_norm)    
-        x_res = x_norm + attn_out
+        x_emb = embed(x_input)
+        x_norm = lnorm.forward(x_emb)
+        mhattn_out = mhattn.forward(x_norm)   
+        x_res = x_emb + mhattn_out
         x_ffn_norm = lnorm2.forward(x_res)
         ffn_out = ffn.forward(x_ffn_norm)
         x_out = x_res + ffn_out
