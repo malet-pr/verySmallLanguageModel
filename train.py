@@ -14,7 +14,7 @@ config = {
     "n_heads": 8          
 }
 
-epochs = 10000
+epochs = 9000
 
 def main():
     text = Path("data/input.txt").read_text(encoding="utf-8")
@@ -93,9 +93,10 @@ def main():
         'token_emb': embed.token_emb.weight, 
         'pos_emb': embed.pos_emb.weight,
         # Attention
-        'w_q': attn.W_q,
-        'w_k': attn.W_k,
-        'w_v': attn.W_v,
+        'w_q': mhattn.w_q, 
+        'w_k': mhattn.w_k,
+        'w_v': mhattn.w_v,
+        'w_o': mhattn.w_o,  
         # FFN
         'ffn_w1': ffn.W1,
         'ffn_b1': ffn.b1,
