@@ -120,10 +120,10 @@ def main():
     my_model = {
         'embed': embed, 'lnorm': lnorm, 'attn': attn,
         'lnorm2': lnorm2, 'ffn': ffn, 'proj': proj,
-        'context_length': 32, 'stoi': vocab.stoi, 'itos': vocab.itos
+        'context_length': config['context_length'], 'stoi': vocab.stoi, 'itos': vocab.itos
     }
     
-    print(generate(my_model, "public String test() { ",100))
+    print(generate(my_model, "public String test() { ",150))
 
 def generate(model, start_str, gen_length=100, temperature=0.1):
     # Unpack the components from the dictionary
