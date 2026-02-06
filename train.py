@@ -2,18 +2,19 @@ import numpy as np
 from pathlib import Path
 import pickle
 from model import *
+import math
 
 # config dictionary
 config = {
     "vocab_size": None,
-    "dim": 128,              
-    "context_length": 64,    
-    "batch_size": 16,
-    "lr": 0.005,
-    "n_heads": 4          
+    "dim": 512,              
+    "context_length": 256,    
+    "batch_size": 12,
+    "lr": 3e-4,
+    "n_heads": 8          
 }
 
-epochs = 30000
+epochs = 10000
 
 def main():
     text = Path("data/input.txt").read_text(encoding="utf-8")
@@ -32,11 +33,10 @@ def main():
     for i in range(epochs):
         x, y = make_batch(data, context_length=config["context_length"], batch_size=config["batch_size"])
         x_emb = embed(x)
-        # A common pattern: Decay down to 10% of the original LR
-        min_lr = config['lr'] * 0.1 
-        decay_ratio = i / epochs
-        current_lr = config['lr'] * (1 - decay_ratio)
-        current_lr = max(current_lr, min_lr)
+        
+        # Learning rate decay
+        min_lr = config['lr'] * 0.1
+        current_lr = min_lr + 0.5 * (config['lr'] - min_lr) * (1 + math.cos(math.pi * i / epochs))
 
         # forward
         x_norm = lnorm.forward(x_emb)
@@ -120,10 +120,10 @@ def main():
     my_model = {
         'embed': embed, 'lnorm': lnorm, 'attn': attn,
         'lnorm2': lnorm2, 'ffn': ffn, 'proj': proj,
-        'context_length': 32, 'stoi': vocab.stoi, 'itos': vocab.itos
+        'context_length': config['context_length'], 'stoi': vocab.stoi, 'itos': vocab.itos
     }
     
-    print(generate(my_model, "public String test() { ",100))
+    print(generate(my_model, "public String test() { \nInteger a =",250))
 
 def generate(model, start_str, gen_length=100, temperature=0.1):
     # Unpack the components from the dictionary
