@@ -8,6 +8,7 @@ models/
 *.pkl
 *.txt
 *.java
+*.csv
 plots/
 figures/
 *.png

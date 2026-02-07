@@ -83,10 +83,7 @@ def main():
      
         if i%100 == 0 or i == epochs-1:
             print(f"Epoch {i}, Loss: {loss:.4f}")
-        # if i % 100 == 0:
-        #     print("*", end="", flush=True)    
 
- # After the loop...
     # Create a dictionary of all your trained weights
     state_dict = {
         # Embeddings
@@ -118,52 +115,6 @@ def main():
         pickle.dump({'stoi': vocab.stoi, 'itos': vocab.itos}, f)
  
 
-    my_model = {
-        'embed': embed, 'lnorm': lnorm, 'mhattn': mhattn,
-        'lnorm2': lnorm2, 'ffn': ffn, 'proj': proj,
-        'context_length': config['context_length'], 'stoi': vocab.stoi, 'itos': vocab.itos
-    }
-    
-    print(generate(my_model, "public String test() { \nInteger a =",250))
-
-def generate(model, start_str, gen_length=100, temperature=0.1):
-    # Unpack the components from the dictionary
-    embed = model['embed']
-    lnorm = model['lnorm']
-    mhattn = model['mhattn']
-    lnorm2 = model['lnorm2']
-    ffn = model['ffn']
-    proj = model['proj']
-    context_length = model['context_length']
-    stoi = model['stoi']
-    itos = model['itos']
-
-    current_context = [stoi[c] for c in start_str if c in stoi]
-    result = start_str
-    
-    for _ in range(gen_length):
-        x_input = np.array(current_context[-context_length:]).reshape(1, -1)
-        
-        # Forward pass
-        x_emb = embed(x_input)
-        x_norm = lnorm.forward(x_emb)
-        mhattn_out = mhattn.forward(x_norm)   
-        x_res = x_emb + mhattn_out
-        x_ffn_norm = lnorm2.forward(x_res)
-        ffn_out = ffn.forward(x_ffn_norm)
-        x_out = x_res + ffn_out
-        logits = proj.forward(x_out)
-        
-        last_logits = logits[0, -1, :]
-        
-        # Softmax + Sampling
-        probs = np.exp(last_logits / temperature)
-        probs /= np.sum(probs)
-        next_id = np.random.choice(len(itos), p=probs)
-        result += itos[next_id]
-        current_context.append(next_id)
-        
-    return result
 
 if __name__ == "__main__":
     main()

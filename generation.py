@@ -11,9 +11,9 @@ stoi, itos = vocab['stoi'], vocab['itos']
 weights = np.load("java_expert.npz")
 
 config = {
-    "dim": 128,              
-    "context_length": 64,    
-    "n_heads": 4          
+    "dim": 512,              
+    "context_length": 256,    
+    "n_heads": 8           
 }
 
 # 3. INITIALIZE YOUR ARCHITECTURE (Use the OLD dimensions here!)
