@@ -4,15 +4,6 @@ import pickle
 from model import *
 import math
 
-
-# 1. LOAD VOCAB
-with open("vocab.pkl", "rb") as f:
-    vocab = pickle.load(f)
-stoi, itos = vocab['stoi'], vocab['itos']
-
-# 2. LOAD WEIGHTS
-weights = np.load("java_expert.npz")
-
 # config dictionary
 config = {
     "vocab_size": None,
@@ -23,15 +14,26 @@ config = {
     "n_heads": 8          
 }
 
-epochs = 200
+epochs = 2000
+
+# 1. LOAD VOCAB
+with open("vocab.pkl", "rb") as f:
+    voc = pickle.load(f)
+stoi, itos = voc['stoi'], voc['itos']
+vocab = Vocabulary(stoi,itos,len(stoi))
+
+
+# 2. LOAD WEIGHTS
+weights = np.load("java_expert.npz")
+
 
 # 3. INITIALIZE YOUR ARCHITECTURE (Use the OLD dimensions here!)
-embed = InputEmbedding(vocab_size=len(stoi),context_length=config["context_length"],dim=config["dim"])
+embed = InputEmbedding(vocab_size=vocab.size,context_length=config["context_length"],dim=config["dim"])
 lnorm = LayerNorm(dim=config["dim"])
 mhattn = MultiHeadAttention(d_model=config['dim'],num_heads=config['n_heads'])
 lnorm2 = LayerNorm(dim=config["dim"])
 ffn = FFN(dim=config["dim"], hidden_dim=4*config["dim"])
-proj = OutputProjection(dim=config["dim"],vocab_size=len(stoi))
+proj = OutputProjection(dim=config["dim"],vocab_size=vocab.size)
 
 # 4. INJECT THE SAVED WEIGHTS
 embed.token_emb.weight = weights['token_emb']
@@ -43,6 +45,7 @@ proj.W,proj.b = weights['proj_w'],weights['proj_b']
 
 text = Path("data/quarkus.txt").read_text(encoding="utf-8")
 data = encode(text, vocab)
+
 
 for i in range(epochs):
     x, y = make_batch(data, context_length=config["context_length"], batch_size=config["batch_size"])
@@ -68,8 +71,6 @@ for i in range(epochs):
     dx_ffn = ffn.backward(dout)
     dx_norm2 = lnorm2.backward(dx_ffn)
     dx_res = dx_norm2 + dout    
-    # dx_attn, _ = attn.backward(dx_res)
-    # dx_norm1 = lnorm.backward(dx_attn)
     dx_mhattn = mhattn.backward(dx_res)
     dx_norm1 = lnorm.backward(dx_mhattn)
     dx_final = dx_norm1 + dx_res
@@ -93,7 +94,7 @@ for i in range(epochs):
     embed.token_emb.weight -= current_lr * embed.token_emb.dW
     embed.pos_emb.weight -= current_lr * embed.pos_emb.dW
     
-    if i%25 == 0 or i == epochs-1:
+    if i%100 == 0 or i == epochs-1:
         print(f"Epoch {i}, Loss: {loss:.4f}")
 
 # After the loop...

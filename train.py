@@ -14,10 +14,10 @@ config = {
     "n_heads": 8          
 }
 
-epochs = 9000
+epochs = 30000
 
 def main():
-    text = Path("data/input.txt").read_text(encoding="utf-8")
+    text = Path("data/cortazar.txt").read_text(encoding="utf-8")
     vocab = build_vocab(text)
     data = encode(text, vocab)
     config["vocab_size"] = len(vocab.stoi)
@@ -40,8 +40,6 @@ def main():
 
         # forward
         x_norm = lnorm.forward(x_emb)
-        # attn_out, _ = attn.forward(x_norm) 
-        # x_res = x_emb + attn_out
         mhattn_out = mhattn.forward(x_norm)   
         x_res = x_emb + mhattn_out
         x_ffn_norm = lnorm2.forward(x_res)
@@ -56,8 +54,6 @@ def main():
         dx_ffn = ffn.backward(dout)
         dx_norm2 = lnorm2.backward(dx_ffn)
         dx_res = dx_norm2 + dout    
-        # dx_attn, _ = attn.backward(dx_res)
-        # dx_norm1 = lnorm.backward(dx_attn)
         dx_mhattn = mhattn.backward(dx_res)
         dx_norm1 = lnorm.backward(dx_mhattn)
         dx_final = dx_norm1 + dx_res
@@ -82,7 +78,7 @@ def main():
         embed.pos_emb.weight -= current_lr * embed.pos_emb.dW
      
         if i%100 == 0 or i == epochs-1:
-            print(f"Epoch {i}, Loss: {loss:.4f}")
+            print(f"Epoch {i}, Loss: {loss:.4f}, Learning Rate: {current_lr:.6f}")
 
     # Create a dictionary of all your trained weights
     state_dict = {
@@ -109,9 +105,9 @@ def main():
         'proj_b': proj.b
     }
     # Save as a single compressed file
-    np.savez("java_expert.npz", **state_dict)
+    np.savez("cortazar_expert.npz", **state_dict)
     # Save the vocab
-    with open("vocab.pkl", "wb") as f:
+    with open("vocab_cortazar.pkl", "wb") as f:
         pickle.dump({'stoi': vocab.stoi, 'itos': vocab.itos}, f)
  
 
